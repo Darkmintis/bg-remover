@@ -2,31 +2,30 @@ import { useEffect, useState } from 'preact/hooks';
 import { Dropzone } from './components/Dropzone';
 import { ModelLoader } from './components/ModelLoader';
 import { Preview } from './components/Preview';
-import { fileError, outputName } from './lib/files';
+import { Queue } from './components/Queue';
 import { MAX_SIDE } from './lib/model';
-import { clearImage, infer, initStore, openImage, retryImage, useStore } from './state/store';
+import {
+  addFiles,
+  downloadItem,
+  infer,
+  initStore,
+  removeItem,
+  retryFailed,
+  startQueue,
+  useStore,
+} from './state/store';
 
 export function App() {
   const state = useStore();
   const [notice, setNotice] = useState<string | null>(null);
-  const image = state.image;
+  const selected =
+    state.items.find((item) => item.id === state.selectedId) ?? state.items[0] ?? null;
 
   useEffect(initStore, []);
 
   function handleFiles(files: File[]) {
-    const file = files[0];
-    if (!file) return;
-
-    const error = fileError(file);
-    if (error) {
-      setNotice(error);
-      return;
-    }
-
-    setNotice(
-      files.length > 1 ? 'Bulk processing is coming next. Added the first image for now.' : null,
-    );
-    openImage(file);
+    const { rejected } = addFiles(files);
+    setNotice(rejected.length > 0 ? rejected.join(' ') : null);
   }
 
   return (
@@ -69,17 +68,35 @@ export function App() {
             </p>
           )}
 
-          {!image && <Dropzone onFiles={handleFiles} />}
+          <Dropzone onFiles={handleFiles} compact={state.items.length > 0} />
 
-          {image && image.status === 'processing' && (
+          <Queue />
+
+          {selected && selected.status === 'waiting' && (
+            <section class="rounded-3xl border border-slate-200 bg-white p-5 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <h2 class="truncate text-sm font-semibold">{selected.file.name}</h2>
+              <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Waiting in the queue.</p>
+              {!state.running && (
+                <button
+                  type="button"
+                  onClick={startQueue}
+                  class="mt-4 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                >
+                  Resume queue
+                </button>
+              )}
+            </section>
+          )}
+
+          {selected && selected.status === 'processing' && (
             <section
               aria-live="polite"
               class="overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900"
             >
               <div class="checkerboard mx-auto grid max-h-80 place-items-center overflow-hidden rounded-2xl">
                 <img
-                  src={image.sourceUrl}
-                  alt="Image being processed"
+                  src={selected.sourceUrl}
+                  alt={`Processing ${selected.file.name}`}
                   class="max-h-80 w-auto opacity-60"
                 />
               </div>
@@ -93,66 +110,69 @@ export function App() {
             </section>
           )}
 
-          {image && image.status === 'error' && (
+          {selected && selected.status === 'failed' && (
             <section class="rounded-3xl border border-red-200 bg-white p-6 text-center shadow-sm dark:border-red-900 dark:bg-slate-900">
               <h2 class="text-base font-semibold">Couldn’t remove the background</h2>
+              <p class="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                {selected.file.name}
+              </p>
               <p class="mx-auto mt-2 max-w-xl text-sm text-red-700 dark:text-red-300">
-                {image.error}
+                {selected.error}
               </p>
               <div class="mt-5 flex flex-wrap justify-center gap-3">
                 <button
                   type="button"
-                  onClick={retryImage}
+                  onClick={retryFailed}
                   class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
                 >
                   Try again
                 </button>
                 <button
                   type="button"
-                  onClick={clearImage}
+                  onClick={() => removeItem(selected.id)}
                   class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
                 >
-                  Choose another image
+                  Remove
                 </button>
               </div>
             </section>
           )}
 
-          {image && image.status === 'done' && image.result && image.resultUrl && (
+          {selected && selected.status === 'done' && selected.result && selected.resultUrl && (
             <section class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-900">
               <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div class="min-w-0">
-                  <h2 class="truncate text-sm font-semibold">{image.file.name}</h2>
+                  <h2 class="truncate text-sm font-semibold">{selected.file.name}</h2>
                   <p class="text-xs text-slate-500 dark:text-slate-400">
-                    {image.result.width} × {image.result.height} px · processed locally
+                    {selected.result.width} × {selected.result.height} px · processed locally
                   </p>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                  <a
-                    href={image.resultUrl}
-                    download={outputName(image.file.name, 'png')}
+                  <button
+                    type="button"
+                    onClick={() => downloadItem(selected.id)}
                     class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
                   >
                     Download PNG
-                  </a>
+                  </button>
                   <button
                     type="button"
-                    onClick={clearImage}
+                    onClick={() => removeItem(selected.id)}
                     class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
                   >
-                    New image
+                    Remove
                   </button>
                 </div>
               </div>
 
               <Preview
-                before={image.sourceUrl}
-                after={image.resultUrl}
-                width={image.result.width}
-                height={image.result.height}
+                before={selected.sourceUrl}
+                after={selected.resultUrl}
+                width={selected.result.width}
+                height={selected.result.height}
               />
 
-              {image.result.resized && (
+              {selected.result.resized && (
                 <p class="mt-3 rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                   This image was larger than {MAX_SIDE}px, so it was scaled down before processing
                   to keep memory use in check.

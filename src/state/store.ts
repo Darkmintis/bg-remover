@@ -7,6 +7,7 @@ import {
   processImage,
   setEngineListener,
 } from '../lib/engine';
+import { downloadBlob, fileError, outputName } from '../lib/files';
 import {
   friendlyError,
   isModelCached,
@@ -16,11 +17,13 @@ import {
   type Tier,
   type TierPreference,
 } from '../lib/model';
+import { makeZip } from '../lib/zip';
 
 type ModelStatus = 'idle' | 'loading' | 'ready' | 'error';
-type ImageStatus = 'processing' | 'done' | 'error';
+export type ImageStatus = 'waiting' | 'processing' | 'done' | 'failed';
 
-export interface SingleImage {
+export interface ImageItem {
+  id: string;
   file: File;
   sourceUrl: string;
   result: MaskResult | null;
@@ -47,7 +50,9 @@ export interface AppState {
   device: DeviceKind;
   cached: boolean;
   model: ModelState;
-  image: SingleImage | null;
+  items: ImageItem[];
+  selectedId: string | null;
+  running: boolean;
 }
 
 const PREF_KEY = 'bg-remover:tier';
@@ -68,13 +73,19 @@ const initialState: AppState = {
     fallback: null,
     error: null,
   },
-  image: null,
+  items: [],
+  selectedId: null,
+  running: false,
 };
 
 let state = initialState;
 const listeners = new Set<() => void>();
 let started = false;
 let cacheCheck = 0;
+let nextId = 0;
+let running = false;
+let runToken = 0;
+let rerun = false;
 
 function update(patch: Partial<AppState>) {
   state = { ...state, ...patch };
@@ -83,6 +94,12 @@ function update(patch: Partial<AppState>) {
 
 function updateModel(patch: Partial<ModelState>) {
   update({ model: { ...state.model, ...patch } });
+}
+
+function updateItem(id: string, patch: Partial<ImageItem>) {
+  update({
+    items: state.items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+  });
 }
 
 function subscribe(listener: () => void) {
@@ -209,7 +226,9 @@ export function retryModel() {
 
 export async function infer(blob: Blob): Promise<MaskResult> {
   const { tier, device } = state;
-  updateModel({ status: 'loading', progress: 0, loaded: 0, total: 0, file: '', error: null });
+  if (state.model.status !== 'ready') {
+    updateModel({ status: 'loading', progress: 0, loaded: 0, total: 0, file: '', error: null });
+  }
 
   try {
     const result = await processImage(blob, { tier, device });
@@ -244,71 +263,167 @@ export function cancelInference() {
   updateModel({ status: 'idle', progress: 0, loaded: 0, total: 0, file: '' });
 }
 
-function revokeImage(image: SingleImage | null) {
-  if (!image) return;
-  URL.revokeObjectURL(image.sourceUrl);
-  if (image.resultUrl) URL.revokeObjectURL(image.resultUrl);
+function revokeItem(item: ImageItem) {
+  URL.revokeObjectURL(item.sourceUrl);
+  if (item.resultUrl) URL.revokeObjectURL(item.resultUrl);
 }
 
-async function runImage(image: SingleImage) {
-  try {
-    const result = await infer(image.file);
-    if (state.image !== image) return;
-    update({
-      image: {
-        ...image,
-        result,
-        resultUrl: URL.createObjectURL(result.resultBlob),
-        status: 'done',
-        error: null,
-      },
+export function addFiles(files: File[]): { added: number; rejected: string[] } {
+  const accepted: ImageItem[] = [];
+  const rejected: string[] = [];
+
+  for (const file of files) {
+    const error = fileError(file);
+    if (error) {
+      rejected.push(error);
+      continue;
+    }
+    nextId += 1;
+    accepted.push({
+      id: `image-${nextId}`,
+      file,
+      sourceUrl: URL.createObjectURL(file),
+      result: null,
+      resultUrl: null,
+      status: 'waiting',
+      error: null,
     });
-  } catch (error) {
-    if (state.image !== image || error instanceof CancelledError) return;
-    const message =
-      error instanceof InferenceError ? error.message : friendlyError(error, state.tier);
-    update({ image: { ...image, status: 'error', error: message } });
+  }
+
+  if (accepted.length === 0) return { added: 0, rejected };
+
+  update({
+    items: [...state.items, ...accepted],
+    selectedId: state.selectedId ?? accepted[0].id,
+  });
+  void runQueue();
+  return { added: accepted.length, rejected };
+}
+
+async function runQueue() {
+  if (running) {
+    rerun = true;
+    return;
+  }
+
+  running = true;
+  const token = ++runToken;
+  update({ running: true });
+
+  try {
+    while (token === runToken) {
+      const next = state.items.find((item) => item.status === 'waiting');
+      if (!next) break;
+
+      if (!state.selectedId) update({ selectedId: next.id });
+      updateItem(next.id, { status: 'processing', error: null });
+
+      try {
+        const result = await infer(next.file);
+
+        if (token !== runToken) {
+          if (state.items.some((item) => item.id === next.id)) {
+            updateItem(next.id, { status: 'waiting', error: null });
+          }
+          break;
+        }
+
+        updateItem(next.id, {
+          result,
+          resultUrl: URL.createObjectURL(result.resultBlob),
+          status: 'done',
+          error: null,
+        });
+      } catch (error) {
+        if (token !== runToken || error instanceof CancelledError) {
+          if (state.items.some((item) => item.id === next.id)) {
+            updateItem(next.id, { status: 'waiting', error: null });
+          }
+          break;
+        }
+
+        const message =
+          error instanceof InferenceError ? error.message : friendlyError(error, state.tier);
+        updateItem(next.id, { status: 'failed', error: message });
+
+        if (error instanceof InferenceError && error.stage === 'model') break;
+      }
+    }
+  } finally {
+    running = false;
+    update({ running: false });
+    if (rerun) {
+      rerun = false;
+      void runQueue();
+    }
   }
 }
 
-export function openImage(file: File) {
-  if (state.image?.status === 'processing') cancelInference();
-  revokeImage(state.image);
-
-  const image: SingleImage = {
-    file,
-    sourceUrl: URL.createObjectURL(file),
-    result: null,
-    resultUrl: null,
-    status: 'processing',
-    error: null,
-  };
-  update({ image });
-  void runImage(image);
+export function cancelQueue() {
+  if (!running) return;
+  runToken += 1;
+  rerun = false;
+  cancelInference();
+  update({ running: false });
 }
 
-export function retryImage() {
-  const current = state.image;
-  if (!current || current.status === 'processing') return;
-
-  if (current.resultUrl) URL.revokeObjectURL(current.resultUrl);
-  const image: SingleImage = {
-    ...current,
-    result: null,
-    resultUrl: null,
-    status: 'processing',
-    error: null,
-  };
-  update({ image });
-  void runImage(image);
+export function startQueue() {
+  void runQueue();
 }
 
-export function clearImage() {
-  if (!state.image) return;
-  const image = state.image;
-  update({ image: null });
-  if (image.status === 'processing') cancelInference();
-  revokeImage(image);
+export function retryFailed() {
+  if (!state.items.some((item) => item.status === 'failed')) return;
+  update({
+    items: state.items.map((item) =>
+      item.status === 'failed' ? { ...item, status: 'waiting', error: null } : item,
+    ),
+  });
+  void runQueue();
+}
+
+export function removeItem(id: string) {
+  const item = state.items.find((candidate) => candidate.id === id);
+  if (!item || item.status === 'processing') return;
+
+  revokeItem(item);
+  const items = state.items.filter((candidate) => candidate.id !== id);
+  update({
+    items,
+    selectedId: state.selectedId === id ? (items[0]?.id ?? null) : state.selectedId,
+  });
+}
+
+export function clearAll() {
+  if (running) {
+    runToken += 1;
+    rerun = false;
+    cancelInference();
+  }
+  for (const item of state.items) revokeItem(item);
+  update({ items: [], selectedId: null, running: false });
+}
+
+export function selectItem(id: string) {
+  if (state.items.some((item) => item.id === id)) update({ selectedId: id });
+}
+
+export function downloadItem(id: string) {
+  const item = state.items.find((candidate) => candidate.id === id);
+  if (!item?.result) return;
+  downloadBlob(item.result.resultBlob, outputName(item.file.name, 'png'));
+}
+
+export async function downloadZip() {
+  const done = state.items.filter((item) => item.result);
+  if (done.length === 0) return;
+
+  const zip = await makeZip(
+    done.map((item) => ({
+      name: outputName(item.file.name, 'png'),
+      blob: item.result!.resultBlob,
+    })),
+  );
+  downloadBlob(zip, 'bg-remover-images.zip');
 }
 
 export function useStore(): AppState {
