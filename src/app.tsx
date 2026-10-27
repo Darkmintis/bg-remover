@@ -31,6 +31,19 @@ export function App() {
 
   useEffect(initStore, []);
 
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 's') return;
+      if (editingId || !selected || selected.status !== 'done') return;
+
+      event.preventDefault();
+      downloadItem(selected.id);
+    }
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [editingId, selected]);
+
   function handleFiles(files: File[]) {
     const { rejected } = addFiles(files);
     setNotice(rejected.length > 0 ? rejected.join(' ') : null);
@@ -172,6 +185,8 @@ export function App() {
                   <button
                     type="button"
                     onClick={() => downloadItem(selected.id)}
+                    aria-keyshortcuts="Control+S Meta+S"
+                    title="Download PNG (Ctrl+S)"
                     class="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
                   >
                     Download PNG
