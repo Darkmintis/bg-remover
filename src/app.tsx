@@ -1,4 +1,10 @@
+import { useEffect, useState } from 'preact/hooks';
+import { ModelLoader } from './components/ModelLoader';
+import { infer, initStore } from './state/store';
+
 export function App() {
+  useEffect(initStore, []);
+
   return (
     <div class="min-h-dvh bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <header class="mx-auto flex max-w-5xl items-center justify-between px-4 py-5">
@@ -27,14 +33,112 @@ export function App() {
           </p>
         </section>
 
-        <section class="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <p class="text-center text-sm text-slate-500 dark:text-slate-400">
-            Dropzone coming in phase 4.
-          </p>
-        </section>
+        <div class="space-y-4">
+          <ModelLoader />
+          <section class="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-sm text-slate-500 dark:text-slate-400">
+              Dropzone and queue are coming in the next phase.
+            </p>
+          </section>
+          {import.meta.env.DEV && <DevModelTest />}
+        </div>
       </main>
     </div>
   );
+}
+
+function DevModelTest() {
+  const [busy, setBusy] = useState(false);
+  const [output, setOutput] = useState<{ result: string; mask: string } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (output) {
+        URL.revokeObjectURL(output.result);
+        URL.revokeObjectURL(output.mask);
+      }
+    };
+  }, [output]);
+
+  async function run() {
+    setBusy(true);
+    try {
+      const blob = await makeTestImage();
+      const result = await infer(blob);
+
+      if (output) {
+        URL.revokeObjectURL(output.result);
+        URL.revokeObjectURL(output.mask);
+      }
+
+      setOutput({
+        result: URL.createObjectURL(result.resultBlob),
+        mask: URL.createObjectURL(result.maskBlob),
+      });
+    } catch {
+      // The model loader surfaces the error.
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section class="rounded-2xl border border-dashed border-slate-300 p-4 dark:border-slate-700">
+      <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Dev: model test</h2>
+      <button
+        type="button"
+        onClick={run}
+        disabled={busy}
+        class="mt-2 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-slate-900"
+      >
+        {busy ? 'Processing…' : 'Run synthetic inference test'}
+      </button>
+      {output && (
+        <div class="mt-3 grid grid-cols-2 gap-3">
+          <div class="checkerboard overflow-hidden rounded-lg">
+            <img src={output.result} alt="Test result with transparency" class="block w-full" />
+          </div>
+          <img
+            src={output.mask}
+            alt="Test mask"
+            class="rounded-lg bg-slate-200 dark:bg-slate-800"
+          />
+        </div>
+      )}
+    </section>
+  );
+}
+
+async function makeTestImage(): Promise<Blob> {
+  const canvas = document.createElement('canvas');
+  canvas.width = 768;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) throw new Error('Canvas unavailable');
+
+  const gradient = ctx.createLinearGradient(0, 0, 768, 512);
+  gradient.addColorStop(0, '#0f766e');
+  gradient.addColorStop(1, '#f59e0b');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 768, 512);
+
+  ctx.fillStyle = '#fef3c7';
+  ctx.beginPath();
+  ctx.ellipse(384, 260, 150, 180, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#7c2d12';
+  ctx.beginPath();
+  ctx.ellipse(384, 120, 60, 26, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error('Could not encode test image'));
+    }, 'image/png');
+  });
 }
 
 function ScissorsIcon() {

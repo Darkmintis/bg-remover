@@ -17,11 +17,12 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "node --test tests/"
+    "test": "node --test"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.1",
     "fflate": "^0.8.3",
+    "onnxruntime-web": "1.31.0-dev.20260914-8d85527a0",
     "preact": "^11.0.2"
   },
   "devDependencies": {
