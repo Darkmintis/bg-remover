@@ -66,6 +66,7 @@ export function Dropzone({ onFiles, busy = false, compact = false }: DropzonePro
         ref={inputRef}
         type="file"
         accept={ACCEPTED_TYPES}
+        aria-label="Choose images"
         multiple
         class="sr-only"
         onChange={(event) => {
@@ -81,7 +82,7 @@ export function Dropzone({ onFiles, busy = false, compact = false }: DropzonePro
             type="button"
             disabled={busy}
             onClick={() => inputRef.current?.click()}
-            class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Choose images
           </button>
@@ -96,7 +97,7 @@ export function Dropzone({ onFiles, busy = false, compact = false }: DropzonePro
             type="button"
             disabled={busy}
             onClick={() => inputRef.current?.click()}
-            class="mt-5 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            class="mt-5 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Choose images
           </button>

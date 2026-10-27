@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'preact/hooks';
 import { Dropzone } from './components/Dropzone';
 import { Editor } from './components/Editor';
+import { Footer } from './components/Footer';
 import { InstallPrompt } from './components/InstallPrompt';
 import { ModelLoader } from './components/ModelLoader';
 import { Preview } from './components/Preview';
 import { Queue } from './components/Queue';
+import { ThemeToggle } from './components/ThemeToggle';
 import { MAX_SIDE } from './lib/model';
 import {
   addFiles,
@@ -38,15 +40,18 @@ export function App() {
     <div class="min-h-dvh bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <header class="mx-auto flex max-w-5xl items-center justify-between px-4 py-5">
         <div class="flex items-center gap-2">
-          <span class="grid size-9 place-items-center rounded-xl bg-emerald-500 text-white shadow-sm">
+          <span class="grid size-9 place-items-center rounded-xl bg-emerald-600 text-white shadow-sm">
             <ScissorsIcon />
           </span>
-          <span class="font-semibold tracking-tight">Darkmintis BG Remover</span>
+          <span class="whitespace-nowrap font-semibold tracking-tight">
+            <span class="hidden sm:inline">Darkmintis </span>BG Remover
+          </span>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex shrink-0 items-center gap-2">
           <InstallPrompt />
+          <ThemeToggle />
           <a
-            class="text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+            class="hidden text-sm text-slate-500 hover:text-slate-900 sm:inline dark:text-slate-400 dark:hover:text-white"
             href="https://github.com/Darkmintis/bg-remover"
           >
             GitHub
@@ -58,7 +63,7 @@ export function App() {
         <section class="py-10 text-center sm:py-16">
           <h1 class="text-4xl font-bold tracking-tight sm:text-5xl">
             Remove backgrounds.
-            <span class="block text-emerald-600 dark:text-emerald-400">Keep your privacy.</span>
+            <span class="block text-emerald-700 dark:text-emerald-400">Keep your privacy.</span>
           </h1>
           <p class="mx-auto mt-4 max-w-xl text-slate-600 dark:text-slate-300">
             100% private. Runs on your device. Nothing is uploaded.
@@ -89,7 +94,7 @@ export function App() {
                 <button
                   type="button"
                   onClick={startQueue}
-                  class="mt-4 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                  class="mt-4 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
                 >
                   Resume queue
                 </button>
@@ -132,7 +137,7 @@ export function App() {
                 <button
                   type="button"
                   onClick={retryFailed}
-                  class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                  class="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
                 >
                   Try again
                 </button>
@@ -167,7 +172,7 @@ export function App() {
                   <button
                     type="button"
                     onClick={() => downloadItem(selected.id)}
-                    class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                    class="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
                   >
                     Download PNG
                   </button>
@@ -200,6 +205,8 @@ export function App() {
           {import.meta.env.DEV && <DevModelTest />}
         </div>
       </main>
+
+      <Footer />
 
       {editingItem && <Editor item={editingItem} onClose={() => setEditingId(null)} />}
     </div>

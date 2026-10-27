@@ -5,6 +5,12 @@ transparent PNG. No uploads, no signup, no watermark, no tracking.
 
 **Live:** https://darkmintis.github.io/bg-remover/ (after first deploy)
 
+## Screenshots
+
+![Main window showing a before/after result](docs/screenshot.png)
+
+![Mask editor with brush and background options](docs/editor.png)
+
 ## Why
 
 Most background removers upload your images to a server. This one never does. The model is

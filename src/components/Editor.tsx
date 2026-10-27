@@ -81,6 +81,7 @@ export function Editor({ item, onClose }: EditorProps) {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const areaRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const maskRef = useRef<HTMLCanvasElement | null>(null);
   const baseRef = useRef<ImageBitmap | null>(null);
   const baseMaskRef = useRef<ImageBitmap | null>(null);
@@ -226,10 +227,15 @@ export function Editor({ item, onClose }: EditorProps) {
   }, [height, ready, width]);
 
   useEffect(() => {
-    const previous = document.body.style.overflow;
+    const previousFocus =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    dialogRef.current?.focus({ preventScroll: true });
+
     return () => {
-      document.body.style.overflow = previous;
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus({ preventScroll: true });
     };
   }, []);
 
@@ -459,10 +465,12 @@ export function Editor({ item, onClose }: EditorProps) {
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="editor-title"
-        class="flex max-h-[95dvh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+        tabIndex={-1}
+        class="flex max-h-[calc(100dvh-1rem)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl outline-none sm:max-h-[95dvh] dark:border-slate-700 dark:bg-slate-900"
         onClick={(event) => event.stopPropagation()}
       >
         <header class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
@@ -503,7 +511,7 @@ export function Editor({ item, onClose }: EditorProps) {
         <div class="flex min-h-0 flex-1 flex-col lg:flex-row">
           <div
             ref={areaRef}
-            class="checkerboard relative flex min-h-[45vh] flex-1 items-center justify-center overflow-hidden lg:min-h-[60vh]"
+            class="checkerboard relative flex min-h-[40vh] shrink-0 items-center justify-center overflow-hidden lg:min-h-[60vh] lg:flex-1"
             onWheel={(event) => {
               event.preventDefault();
               setZoom((current) => clamp(current * (event.deltaY < 0 ? 1.1 : 0.9), 0.25, 8));
@@ -540,7 +548,7 @@ export function Editor({ item, onClose }: EditorProps) {
             )}
           </div>
 
-          <aside class="w-full shrink-0 space-y-5 overflow-y-auto border-t border-slate-200 p-4 lg:w-72 lg:border-t-0 lg:border-l dark:border-slate-800">
+          <aside class="min-h-0 w-full flex-1 space-y-5 overflow-y-auto border-t border-slate-200 p-4 lg:w-72 lg:flex-none lg:shrink-0 lg:border-t-0 lg:border-l dark:border-slate-800">
             <section>
               <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Brush</h3>
               <div class="mt-2 grid grid-cols-3 gap-1" role="group" aria-label="Editor tool">
@@ -558,7 +566,7 @@ export function Editor({ item, onClose }: EditorProps) {
                     onClick={() => setTool(value)}
                     class={`rounded-lg px-2 py-1.5 text-xs font-semibold ${
                       tool === value
-                        ? 'bg-emerald-600 text-white'
+                        ? 'bg-emerald-700 text-white'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200'
                     }`}
                   >
@@ -602,7 +610,7 @@ export function Editor({ item, onClose }: EditorProps) {
                     onClick={() => setBackground(value)}
                     class={`rounded-lg px-2 py-1.5 text-xs font-semibold ${
                       background === value
-                        ? 'bg-emerald-600 text-white'
+                        ? 'bg-emerald-700 text-white'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200'
                     }`}
                   >
@@ -667,7 +675,7 @@ export function Editor({ item, onClose }: EditorProps) {
                     onClick={() => setFormat(value)}
                     class={`rounded-lg px-2 py-1.5 text-xs font-semibold uppercase disabled:cursor-not-allowed disabled:opacity-40 ${
                       format === value
-                        ? 'bg-emerald-600 text-white'
+                        ? 'bg-emerald-700 text-white'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200'
                     }`}
                   >
@@ -715,8 +723,8 @@ export function Editor({ item, onClose }: EditorProps) {
           </aside>
         </div>
 
-        <footer class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-4 py-3 dark:border-slate-800">
-          <div class="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+        <footer class="flex flex-col gap-2 border-t border-slate-200 px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-4 sm:py-3 dark:border-slate-800">
+          <div class="flex items-center justify-center gap-1 text-xs text-slate-500 sm:justify-start dark:text-slate-400">
             <button
               type="button"
               onClick={() => setZoom((current) => clamp(current * 0.8, 0.25, 8))}
@@ -746,7 +754,7 @@ export function Editor({ item, onClose }: EditorProps) {
             </button>
           </div>
 
-          <div class="flex gap-2">
+          <div class="grid grid-cols-2 gap-2 sm:flex">
             <button
               type="button"
               onClick={onClose}
@@ -758,7 +766,7 @@ export function Editor({ item, onClose }: EditorProps) {
               type="button"
               disabled={saving}
               onClick={() => void apply()}
-              class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-60"
+              class="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-wait disabled:opacity-60"
             >
               {saving ? 'Saving…' : 'Apply & close'}
             </button>

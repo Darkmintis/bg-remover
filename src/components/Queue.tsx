@@ -93,7 +93,7 @@ export function Queue() {
               type="button"
               disabled={zipping}
               onClick={handleZip}
-              class="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-60"
+              class="rounded-xl bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 disabled:cursor-wait disabled:opacity-60"
             >
               {zipping ? 'Zipping…' : 'Download all (ZIP)'}
             </button>
@@ -126,13 +126,13 @@ export function Queue() {
           return (
             <li
               key={item.id}
-              class={`flex items-center gap-3 py-2 ${selected ? 'bg-emerald-50/60 dark:bg-emerald-950/20' : ''}`}
+              class={`flex flex-wrap items-center gap-x-3 gap-y-1 py-2 ${selected ? 'bg-emerald-50/60 dark:bg-emerald-950/20' : ''}`}
             >
               <button
                 type="button"
                 onClick={() => selectItem(item.id)}
                 aria-current={selected ? 'true' : undefined}
-                class="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-1 text-left hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                class="flex w-full min-w-0 items-center gap-3 rounded-lg px-2 py-1 text-left hover:bg-slate-50 sm:w-auto sm:flex-1 dark:hover:bg-slate-800/60"
               >
                 <img
                   src={item.sourceUrl}
@@ -148,30 +148,32 @@ export function Queue() {
               </button>
 
               <span
-                class={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLE[item.status]}`}
+                class={`hidden shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium sm:inline-block ${STATUS_STYLE[item.status]}`}
               >
                 {STATUS_LABEL[item.status]}
               </span>
 
-              {item.status === 'done' && (
+              <div class="ml-auto flex shrink-0 items-center gap-1">
+                {item.status === 'done' && (
+                  <button
+                    type="button"
+                    onClick={() => downloadItem(item.id)}
+                    class="rounded-lg px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950"
+                  >
+                    Download
+                  </button>
+                )}
+
                 <button
                   type="button"
-                  onClick={() => downloadItem(item.id)}
-                  class="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950"
+                  disabled={item.status === 'processing'}
+                  onClick={() => removeItem(item.id)}
+                  aria-label={`Remove ${item.file.name}`}
+                  class="rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-800"
                 >
-                  Download
+                  Remove
                 </button>
-              )}
-
-              <button
-                type="button"
-                disabled={item.status === 'processing'}
-                onClick={() => removeItem(item.id)}
-                aria-label={`Remove ${item.file.name}`}
-                class="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-800"
-              >
-                Remove
-              </button>
+              </div>
             </li>
           );
         })}
