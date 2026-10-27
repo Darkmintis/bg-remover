@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { Dropzone } from './components/Dropzone';
 import { Editor } from './components/Editor';
+import { InstallPrompt } from './components/InstallPrompt';
 import { ModelLoader } from './components/ModelLoader';
 import { Preview } from './components/Preview';
 import { Queue } from './components/Queue';
@@ -42,12 +43,15 @@ export function App() {
           </span>
           <span class="font-semibold tracking-tight">Darkmintis BG Remover</span>
         </div>
-        <a
-          class="text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-          href="https://github.com/Darkmintis/bg-remover"
-        >
-          GitHub
-        </a>
+        <div class="flex items-center gap-3">
+          <InstallPrompt />
+          <a
+            class="text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+            href="https://github.com/Darkmintis/bg-remover"
+          >
+            GitHub
+          </a>
+        </div>
       </header>
 
       <main class="mx-auto max-w-5xl px-4 pb-16">
