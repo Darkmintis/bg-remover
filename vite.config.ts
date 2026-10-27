@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => {
         registerType: 'autoUpdate',
         includeAssets: ['favicon.svg', 'icons/*.png'],
         manifest: {
-          name: 'Darkmintis BG Remover',
+          name: 'BG Remover',
           short_name: 'BG Remover',
           description: 'Free, open-source background remover that runs entirely in your browser.',
           lang: 'en',

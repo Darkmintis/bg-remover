@@ -2,12 +2,52 @@
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/outfit-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../assets/fonts/outfit-latin-600.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../assets/fonts/outfit-latin-700.woff2') format('woff2');
+}
+
 :root {
   color-scheme: light;
+  --ink: #0f1c1a;
+  --paper: #f3f7f5;
+  --mint: #0d9488;
+  --mint-deep: #0f766e;
+  --mint-glow: rgba(13, 148, 136, 0.35);
+  --surface: rgba(255, 255, 255, 0.78);
+  --surface-border: rgba(15, 28, 26, 0.08);
+  --muted: #5b6b67;
 }
 
 [data-theme='dark'] {
   color-scheme: dark;
+  --ink: #e8f2ef;
+  --paper: #071210;
+  --mint: #2dd4bf;
+  --mint-deep: #14b8a6;
+  --mint-glow: rgba(45, 212, 191, 0.28);
+  --surface: rgba(12, 28, 25, 0.72);
+  --surface-border: rgba(232, 242, 239, 0.1);
+  --muted: #9bb0aa;
 }
 
 html {
@@ -16,23 +56,197 @@ html {
 
 body {
   margin: 0;
+  color: var(--ink);
+  background: var(--paper);
   font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
+    'Outfit',
+    'Avenir Next',
     'Segoe UI',
     sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--mint) 35%, transparent);
+}
+
+.app-shell {
+  position: relative;
+  isolation: isolate;
+  min-height: 100dvh;
+  overflow-x: clip;
+}
+
+.app-aurora {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 80% 50% at 10% -10%, color-mix(in srgb, var(--mint) 22%, transparent), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 90% 0%, color-mix(in srgb, #38bdf8 16%, transparent), transparent 50%),
+    radial-gradient(ellipse 50% 45% at 50% 110%, color-mix(in srgb, var(--mint) 14%, transparent), transparent 55%),
+    var(--paper);
+}
+
+.app-aurora::before,
+.app-aurora::after {
+  content: '';
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(48px);
+  opacity: 0.55;
+  animation: drift 18s ease-in-out infinite;
+}
+
+.app-aurora::before {
+  top: 12%;
+  left: -8%;
+  width: 42vw;
+  height: 42vw;
+  max-width: 520px;
+  max-height: 520px;
+  background: color-mix(in srgb, var(--mint) 40%, transparent);
+}
+
+.app-aurora::after {
+  right: -6%;
+  bottom: 8%;
+  width: 36vw;
+  height: 36vw;
+  max-width: 440px;
+  max-height: 440px;
+  background: color-mix(in srgb, #67e8f9 35%, transparent);
+  animation-delay: -7s;
+  animation-direction: reverse;
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(4%, 6%, 0) scale(1.08);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 var(--mint-glow);
+  }
+  70% {
+    box-shadow: 0 0 0 14px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.animate-rise {
+  animation: rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-rise-delay {
+  animation: rise 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+}
+
+.surface {
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+  backdrop-filter: blur(14px);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, white 40%, transparent) inset,
+    0 18px 40px -28px rgba(15, 28, 26, 0.35);
+}
+
+[data-theme='dark'] .surface {
+  box-shadow:
+    0 1px 0 color-mix(in srgb, white 6%, transparent) inset,
+    0 18px 40px -24px rgba(0, 0, 0, 0.55);
+}
+
+.dropzone-active {
+  border-color: var(--mint) !important;
+  background: color-mix(in srgb, var(--mint) 10%, var(--surface)) !important;
+  animation: pulse-ring 1.4s ease-out infinite;
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--mint) 92%, white), var(--mint-deep));
+  color: white;
+  box-shadow:
+    0 1px 0 color-mix(in srgb, white 28%, transparent) inset,
+    0 10px 24px -12px var(--mint-glow);
+  transition:
+    transform 160ms ease,
+    filter 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-ghost {
+  border: 1px solid var(--surface-border);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--mint) 35%, var(--surface-border));
+  background: color-mix(in srgb, var(--mint) 8%, var(--surface));
+}
+
+.progress-shine {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, white 45%, transparent),
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
 }
 
 .checkerboard {
   background-color: #fff;
   background-image:
-    linear-gradient(45deg, #d9dee7 25%, transparent 25%),
-    linear-gradient(-45deg, #d9dee7 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #d9dee7 75%),
-    linear-gradient(-45deg, transparent 75%, #d9dee7 75%);
+    linear-gradient(45deg, #d5e0db 25%, transparent 25%),
+    linear-gradient(-45deg, #d5e0db 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #d5e0db 75%),
+    linear-gradient(-45deg, transparent 75%, #d5e0db 75%);
   background-position:
     0 0,
     0 8px,
@@ -42,15 +256,31 @@ body {
 }
 
 [data-theme='dark'] .checkerboard {
-  background-color: #111827;
+  background-color: #0b1614;
   background-image:
-    linear-gradient(45deg, #1f2937 25%, transparent 25%),
-    linear-gradient(-45deg, #1f2937 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #1f2937 75%),
-    linear-gradient(-45deg, transparent 75%, #1f2937 75%);
+    linear-gradient(45deg, #152421 25%, transparent 25%),
+    linear-gradient(-45deg, #152421 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #152421 75%),
+    linear-gradient(-45deg, transparent 75%, #152421 75%);
 }
 
 :focus-visible {
-  outline: 2px solid #10b981;
+  outline: 2px solid var(--mint);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-aurora::before,
+  .app-aurora::after,
+  .animate-rise,
+  .animate-rise-delay,
+  .dropzone-active,
+  .progress-shine {
+    animation: none !important;
+  }
+
+  .btn-primary,
+  .btn-ghost {
+    transition: none;
+  }
 }

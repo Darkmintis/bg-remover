@@ -45,10 +45,6 @@ export function Dropzone({ onFiles, busy = false, compact = false }: DropzonePro
     if (!busy) pick(event.dataTransfer?.files ?? null);
   }
 
-  const dragClass = dragging
-    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40'
-    : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900';
-
   return (
     <section
       aria-label="Upload images"
@@ -58,9 +54,9 @@ export function Dropzone({ onFiles, busy = false, compact = false }: DropzonePro
       }}
       onDragLeave={() => setDragging(false)}
       onDrop={onDrop}
-      class={`border-2 border-dashed text-center transition-colors ${dragClass} ${
-        compact ? 'rounded-2xl p-4' : 'rounded-3xl p-8 sm:p-12'
-      }`}
+      class={`surface text-center transition-[border-color,background,transform] duration-200 ${
+        dragging ? 'dropzone-active' : ''
+      } ${compact ? 'rounded-2xl border-dashed p-4' : 'rounded-[1.75rem] border-dashed p-8 sm:p-12'}`}
     >
       <input
         ref={inputRef}
@@ -76,36 +72,56 @@ export function Dropzone({ onFiles, busy = false, compact = false }: DropzonePro
       />
 
       {compact ? (
-        <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-slate-500 dark:text-slate-400">
-          <span>Drop more images or paste here, or</span>
+        <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-[var(--muted)]">
+          <span>Drop more images or paste, or</span>
           <button
             type="button"
             disabled={busy}
             onClick={() => inputRef.current?.click()}
-            class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+            class="btn-primary rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
           >
             Choose images
           </button>
         </div>
       ) : (
         <>
-          <p class="text-base font-semibold">Drop images here</p>
-          <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            or paste from the clipboard, or choose files
+          <div class="mx-auto mb-5 grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-teal-400/20 to-cyan-400/10 text-teal-700 dark:text-teal-300">
+            <UploadIcon />
+          </div>
+          <p class="text-lg font-semibold tracking-tight">Drop images here</p>
+          <p class="mt-1 text-sm text-[var(--muted)]">
+            or paste from the clipboard · JPG, PNG, WebP
           </p>
           <button
             type="button"
             disabled={busy}
             onClick={() => inputRef.current?.click()}
-            class="mt-5 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+            class="btn-primary mt-6 rounded-xl px-6 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
           >
             Choose images
           </button>
-          <p class="mt-4 text-xs text-slate-500 dark:text-slate-400">
-            JPG, PNG, or WebP. Nothing leaves your device.
-          </p>
+          <p class="mt-4 text-xs text-[var(--muted)]">Nothing leaves your device.</p>
         </>
       )}
     </section>
+  );
+}
+
+function UploadIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      class="size-6"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M12 16V6" />
+      <path d="m8 9 4-4 4 4" />
+      <path d="M4 18h16" />
+    </svg>
   );
 }

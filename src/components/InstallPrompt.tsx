@@ -37,7 +37,7 @@ export function InstallPrompt() {
         await event.prompt();
         await event.userChoice;
       }}
-      class="shrink-0 whitespace-nowrap rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+      class="btn-ghost shrink-0 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-semibold"
     >
       Install<span class="hidden sm:inline"> app</span>
     </button>
