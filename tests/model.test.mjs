@@ -6,7 +6,7 @@ test('formatMB switches to whole numbers at 10 MB', () => {
   assert.equal(formatMB(6.6), '6.6 MB');
   assert.equal(formatMB(9.99), '10.0 MB');
   assert.equal(formatMB(13), '13 MB');
-  assert.equal(formatMB(224), '224 MB');
+  assert.equal(formatMB(183), '183 MB');
 });
 
 test('friendlyError maps common failures', () => {

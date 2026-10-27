@@ -1,4 +1,5 @@
 import { env, LogLevel, pipeline, RawImage, type ProgressInfo } from '@huggingface/transformers';
+import { finalizeMask } from '../lib/mask';
 import { friendlyError, MAX_SIDE, MODELS, type Tier, type DeviceKind } from '../lib/model';
 import type { WorkerRequest, WorkerResponse } from '../lib/model';
 import wasmAsyncifyUrl from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url';
@@ -91,9 +92,9 @@ async function loadSegmenter(
     if (device === 'webgpu' && !isNetworkError(error)) {
       send({
         type: 'fallback',
-        message: 'WebGPU could not run the model. Switched to Fast on CPU.',
+        message: 'WebGPU could not run the model. Retrying on CPU with your selected model.',
       });
-      return loadSegmenter('fast', 'wasm');
+      return loadSegmenter(tier, 'wasm');
     }
     throw error;
   }
@@ -141,7 +142,39 @@ async function maskToBlob(mask: RawImage): Promise<Blob> {
     rgba[offset + 2] = 255;
     rgba[offset + 3] = mask.data[i] ?? 0;
   }
-  return new RawImage(rgba, mask.width, mask.height, 4).toBlob('image/png');
+  return encodeRgbaPng(rgba, mask.width, mask.height);
+}
+
+/** Apply mask alpha onto the source image and encode a real transparent PNG. */
+async function composePng(image: RawImage, mask: RawImage): Promise<Blob> {
+  const rgba = image.clone().rgba();
+  const pixels = rgba.width * rgba.height;
+  const data = rgba.data instanceof Uint8ClampedArray ? rgba.data : new Uint8ClampedArray(rgba.data);
+
+  if (mask.width !== rgba.width || mask.height !== rgba.height) {
+    throw new Error('Mask size does not match the image.');
+  }
+
+  for (let i = 0; i < pixels; i++) {
+    data[i * 4 + 3] = mask.data[i] ?? 0;
+  }
+
+  return encodeRgbaPng(data, rgba.width, rgba.height);
+}
+
+async function encodeRgbaPng(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+): Promise<Blob> {
+  const canvas = new OffscreenCanvas(width, height);
+  const context = canvas.getContext('2d', { alpha: true });
+  if (!context) throw new Error('Canvas is not available in this browser.');
+
+  // Copy into a fresh buffer - ImageData requires ownership of the array.
+  const pixels = new Uint8ClampedArray(data);
+  context.putImageData(new ImageData(pixels, width, height), 0, 0);
+  return canvas.convertToBlob({ type: 'image/png' });
 }
 
 async function process(request: WorkerRequest) {
@@ -155,13 +188,12 @@ async function process(request: WorkerRequest) {
 
     if (!mask) throw new Error('The model did not return a mask.');
 
-    const result = image.clone().rgba();
-    result.putAlpha(mask);
+    // Pipeline already sigmoid + resize; then polarity / hole-fill for logos.
+    finalizeMask(mask.data, mask.width, mask.height);
 
-    const [resultBlob, maskBlob] = await Promise.all([
-      result.toBlob('image/png'),
-      maskToBlob(mask),
-    ]);
+    // Keep original RGB under the new alpha (canvas export is the reliable path).
+    const resultBlob = await composePng(image, mask);
+    const maskBlob = await maskToBlob(mask);
 
     send({
       type: 'result',

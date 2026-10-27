@@ -2,7 +2,8 @@ export const MAX_SIDE = 4096;
 
 export type Tier = 'fast' | 'quality';
 export type DeviceKind = 'webgpu' | 'wasm';
-export type TierPreference = 'auto' | Tier;
+/** Users pick the model themselves - no auto. */
+export type TierPreference = Tier;
 
 export interface ModelInfo {
   id: string;
@@ -19,16 +20,19 @@ export const MODELS: Record<Tier, ModelInfo> = {
     label: 'MODNet',
     license: 'Apache-2.0',
     source: 'https://huggingface.co/onnx-community/modnet-webnn',
-    dtype: { webgpu: 'fp16', wasm: 'q8' },
-    sizeMB: { webgpu: 13, wasm: 6.6 },
+    // Official transformers.js demo uses fp32 - fp16 was returning empty mattes.
+    dtype: { webgpu: 'fp32', wasm: 'q8' },
+    sizeMB: { webgpu: 25, wasm: 6.6 },
   },
+  // 512² browser export - the stock 1024² BiRefNet_lite ONNX OOMs / fails on
+  // WebGPU and WASM, which produced broken mattes that ate subjects.
   quality: {
-    id: 'onnx-community/BiRefNet_lite-ONNX',
+    id: 'studioludens/birefnet-lite-512',
     label: 'BiRefNet Lite',
     license: 'MIT',
-    source: 'https://huggingface.co/onnx-community/BiRefNet_lite-ONNX',
+    source: 'https://huggingface.co/studioludens/birefnet-lite-512',
     dtype: { webgpu: 'fp16', wasm: 'fp32' },
-    sizeMB: { webgpu: 114.5, wasm: 224 },
+    sizeMB: { webgpu: 94, wasm: 183 },
   },
 };
 
@@ -88,6 +92,9 @@ export function friendlyError(error: unknown, tier: Tier): string {
   const raw = error instanceof Error ? error.message : String(error);
   const message = raw.toLowerCase();
 
+  if (/could not auto-remove|empty mask|emptymask/.test(message)) {
+    return 'We could not auto-remove the background from this image. Try the Quality model, or open Edit and restore the subject with the brush.';
+  }
   if (/out of memory|allocation|oom|memory access|failed to allocate/.test(message)) {
     return 'This image is too large for your device’s memory. Try the Fast model or a smaller image.';
   }

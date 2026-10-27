@@ -60,8 +60,8 @@ const PREF_KEY = 'bg-remover:tier';
 const initialState: AppState = {
   initialized: false,
   detected: null,
-  preference: 'auto',
-  tier: 'fast',
+  preference: 'quality',
+  tier: 'quality',
   device: 'wasm',
   cached: false,
   model: {
@@ -114,11 +114,13 @@ export function getState(): AppState {
 function readPreference(): TierPreference {
   try {
     const stored = localStorage.getItem(PREF_KEY);
-    if (stored === 'fast' || stored === 'quality' || stored === 'auto') return stored;
+    if (stored === 'fast' || stored === 'quality') return stored;
+    // Migrate old "auto" preference to Quality.
+    if (stored === 'auto') return 'quality';
   } catch {
     // Ignore storage failures.
   }
-  return 'auto';
+  return 'quality';
 }
 
 function writePreference(preference: TierPreference) {
@@ -127,11 +129,6 @@ function writePreference(preference: TierPreference) {
   } catch {
     // Ignore storage failures.
   }
-}
-
-function effectiveTier(preference: TierPreference, detected: DeviceInfo | null): Tier {
-  if (preference === 'auto') return detected?.tier ?? 'fast';
-  return preference;
 }
 
 async function refreshCache(tier: Tier) {
@@ -167,10 +164,7 @@ function handleEngineEvent(event: EngineEvent) {
       });
       break;
     case 'fallback':
-      writePreference('fast');
       update({
-        preference: 'fast',
-        tier: 'fast',
         device: 'wasm',
         model: { ...state.model, fallback: event.message },
       });
@@ -193,7 +187,7 @@ export function initStore() {
       initialized: true,
       detected,
       preference,
-      tier: effectiveTier(preference, detected),
+      tier: preference,
       device: detected.device,
     });
     void refreshCache(state.tier);
@@ -202,10 +196,9 @@ export function initStore() {
 
 export function setPreference(preference: TierPreference) {
   writePreference(preference);
-  const tier = effectiveTier(preference, state.detected);
   update({
     preference,
-    tier,
+    tier: preference,
     device: state.detected?.device ?? 'wasm',
     model: {
       ...state.model,
@@ -215,9 +208,10 @@ export function setPreference(preference: TierPreference) {
       total: 0,
       file: '',
       error: null,
+      fallback: null,
     },
   });
-  void refreshCache(tier);
+  void refreshCache(preference);
 }
 
 export function retryModel() {

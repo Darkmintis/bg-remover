@@ -35,9 +35,10 @@ export async function detectDevice(): Promise<DeviceInfo> {
   const mobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
   const lowEnd = mobile || cores <= 4 || (memory !== undefined && memory < 4);
 
+  // Default suggestion only - the UI lets the user pick Fast vs Quality.
   return {
     device: webgpu ? 'webgpu' : 'wasm',
-    tier: webgpu && !lowEnd ? 'quality' : 'fast',
+    tier: 'quality',
     webgpu,
     lowEnd,
     memory,

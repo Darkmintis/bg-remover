@@ -46,10 +46,10 @@ The deploy base path is controlled by `VITE_BASE` and defaults to `/bg-remover/`
 
 ## Models
 
-| Tier    | Model                                                                     | License    |
-| ------- | ------------------------------------------------------------------------- | ---------- |
-| Fast    | [MODNet](https://huggingface.co/onnx-community/modnet-webnn)              | Apache-2.0 |
-| Quality | [BiRefNet Lite](https://huggingface.co/onnx-community/BiRefNet_lite-ONNX) | MIT        |
+| Tier    | Model                                                                   | License    |
+| ------- | ----------------------------------------------------------------------- | ---------- |
+| Fast    | [MODNet](https://huggingface.co/onnx-community/modnet-webnn)            | Apache-2.0 |
+| Quality | [BiRefNet Lite 512](https://huggingface.co/studioludens/birefnet-lite-512) | MIT     |
 
 Model files are not stored in this repository; they are fetched from the Hugging Face CDN and
 cached by Transformers.js.
