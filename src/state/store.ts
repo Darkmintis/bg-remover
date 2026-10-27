@@ -407,6 +407,31 @@ export function selectItem(id: string) {
   if (state.items.some((item) => item.id === id)) update({ selectedId: id });
 }
 
+export interface EditResult {
+  resultBlob: Blob;
+  maskBlob: Blob;
+  width: number;
+  height: number;
+}
+
+export function applyEdit(id: string, edit: EditResult) {
+  const item = state.items.find((candidate) => candidate.id === id);
+  if (!item?.result) return;
+
+  if (item.resultUrl) URL.revokeObjectURL(item.resultUrl);
+  const result = {
+    ...item.result,
+    resultBlob: edit.resultBlob,
+    maskBlob: edit.maskBlob,
+    width: edit.width,
+    height: edit.height,
+  };
+  updateItem(id, {
+    result,
+    resultUrl: URL.createObjectURL(edit.resultBlob),
+  });
+}
+
 export function downloadItem(id: string) {
   const item = state.items.find((candidate) => candidate.id === id);
   if (!item?.result) return;

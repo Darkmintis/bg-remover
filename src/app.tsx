@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { Dropzone } from './components/Dropzone';
+import { Editor } from './components/Editor';
 import { ModelLoader } from './components/ModelLoader';
 import { Preview } from './components/Preview';
 import { Queue } from './components/Queue';
@@ -18,8 +19,12 @@ import {
 export function App() {
   const state = useStore();
   const [notice, setNotice] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const selected =
     state.items.find((item) => item.id === state.selectedId) ?? state.items[0] ?? null;
+  const editingItem = state.items.find(
+    (item) => item.id === editingId && item.status === 'done' && item.result,
+  );
 
   useEffect(initStore, []);
 
@@ -150,6 +155,13 @@ export function App() {
                 <div class="flex flex-wrap gap-2">
                   <button
                     type="button"
+                    onClick={() => setEditingId(selected.id)}
+                    class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => downloadItem(selected.id)}
                     class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
                   >
@@ -184,6 +196,8 @@ export function App() {
           {import.meta.env.DEV && <DevModelTest />}
         </div>
       </main>
+
+      {editingItem && <Editor item={editingItem} onClose={() => setEditingId(null)} />}
     </div>
   );
 }
