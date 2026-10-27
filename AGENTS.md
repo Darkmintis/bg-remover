@@ -1,7 +1,5 @@
 # Agent notes
 
-Read the master plan first: `BG Remover — Master Plan.md`.
-
 ## Product rules
 
 1. Work phase by phase. Finish and verify a phase before starting the next.
