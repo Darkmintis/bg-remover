@@ -8,6 +8,7 @@ import {
   setEngineListener,
 } from '../lib/engine';
 import {
+  friendlyError,
   isModelCached,
   type DeviceKind,
   type EngineEvent,
@@ -17,6 +18,16 @@ import {
 } from '../lib/model';
 
 type ModelStatus = 'idle' | 'loading' | 'ready' | 'error';
+type ImageStatus = 'processing' | 'done' | 'error';
+
+export interface SingleImage {
+  file: File;
+  sourceUrl: string;
+  result: MaskResult | null;
+  resultUrl: string | null;
+  status: ImageStatus;
+  error: string | null;
+}
 
 export interface ModelState {
   status: ModelStatus;
@@ -36,6 +47,7 @@ export interface AppState {
   device: DeviceKind;
   cached: boolean;
   model: ModelState;
+  image: SingleImage | null;
 }
 
 const PREF_KEY = 'bg-remover:tier';
@@ -56,6 +68,7 @@ const initialState: AppState = {
     fallback: null,
     error: null,
   },
+  image: null,
 };
 
 let state = initialState;
@@ -229,6 +242,73 @@ export async function infer(blob: Blob): Promise<MaskResult> {
 export function cancelInference() {
   cancelProcessing();
   updateModel({ status: 'idle', progress: 0, loaded: 0, total: 0, file: '' });
+}
+
+function revokeImage(image: SingleImage | null) {
+  if (!image) return;
+  URL.revokeObjectURL(image.sourceUrl);
+  if (image.resultUrl) URL.revokeObjectURL(image.resultUrl);
+}
+
+async function runImage(image: SingleImage) {
+  try {
+    const result = await infer(image.file);
+    if (state.image !== image) return;
+    update({
+      image: {
+        ...image,
+        result,
+        resultUrl: URL.createObjectURL(result.resultBlob),
+        status: 'done',
+        error: null,
+      },
+    });
+  } catch (error) {
+    if (state.image !== image || error instanceof CancelledError) return;
+    const message =
+      error instanceof InferenceError ? error.message : friendlyError(error, state.tier);
+    update({ image: { ...image, status: 'error', error: message } });
+  }
+}
+
+export function openImage(file: File) {
+  if (state.image?.status === 'processing') cancelInference();
+  revokeImage(state.image);
+
+  const image: SingleImage = {
+    file,
+    sourceUrl: URL.createObjectURL(file),
+    result: null,
+    resultUrl: null,
+    status: 'processing',
+    error: null,
+  };
+  update({ image });
+  void runImage(image);
+}
+
+export function retryImage() {
+  const current = state.image;
+  if (!current || current.status === 'processing') return;
+
+  if (current.resultUrl) URL.revokeObjectURL(current.resultUrl);
+  const image: SingleImage = {
+    ...current,
+    result: null,
+    resultUrl: null,
+    status: 'processing',
+    error: null,
+  };
+  update({ image });
+  void runImage(image);
+}
+
+export function clearImage() {
+  if (!state.image) return;
+  const image = state.image;
+  update({ image: null });
+  if (image.status === 'processing') cancelInference();
+  revokeImage(image);
 }
 
 export function useStore(): AppState {

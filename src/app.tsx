@@ -1,9 +1,33 @@
 import { useEffect, useState } from 'preact/hooks';
+import { Dropzone } from './components/Dropzone';
 import { ModelLoader } from './components/ModelLoader';
-import { infer, initStore } from './state/store';
+import { Preview } from './components/Preview';
+import { fileError, outputName } from './lib/files';
+import { MAX_SIDE } from './lib/model';
+import { clearImage, infer, initStore, openImage, retryImage, useStore } from './state/store';
 
 export function App() {
+  const state = useStore();
+  const [notice, setNotice] = useState<string | null>(null);
+  const image = state.image;
+
   useEffect(initStore, []);
+
+  function handleFiles(files: File[]) {
+    const file = files[0];
+    if (!file) return;
+
+    const error = fileError(file);
+    if (error) {
+      setNotice(error);
+      return;
+    }
+
+    setNotice(
+      files.length > 1 ? 'Bulk processing is coming next. Added the first image for now.' : null,
+    );
+    openImage(file);
+  }
 
   return (
     <div class="min-h-dvh bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
@@ -35,11 +59,108 @@ export function App() {
 
         <div class="space-y-4">
           <ModelLoader />
-          <section class="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <p class="text-sm text-slate-500 dark:text-slate-400">
-              Dropzone and queue are coming in the next phase.
+
+          {notice && (
+            <p
+              role="status"
+              class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
+            >
+              {notice}
             </p>
-          </section>
+          )}
+
+          {!image && <Dropzone onFiles={handleFiles} />}
+
+          {image && image.status === 'processing' && (
+            <section
+              aria-live="polite"
+              class="overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900"
+            >
+              <div class="checkerboard mx-auto grid max-h-80 place-items-center overflow-hidden rounded-2xl">
+                <img
+                  src={image.sourceUrl}
+                  alt="Image being processed"
+                  class="max-h-80 w-auto opacity-60"
+                />
+              </div>
+              <div class="mt-4 flex items-center justify-center gap-2 text-sm font-medium">
+                <span class="size-2 animate-pulse rounded-full bg-emerald-500" />
+                Removing the background…
+              </div>
+              <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                The first run also downloads the model. The UI stays responsive.
+              </p>
+            </section>
+          )}
+
+          {image && image.status === 'error' && (
+            <section class="rounded-3xl border border-red-200 bg-white p-6 text-center shadow-sm dark:border-red-900 dark:bg-slate-900">
+              <h2 class="text-base font-semibold">Couldn’t remove the background</h2>
+              <p class="mx-auto mt-2 max-w-xl text-sm text-red-700 dark:text-red-300">
+                {image.error}
+              </p>
+              <div class="mt-5 flex flex-wrap justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={retryImage}
+                  class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                >
+                  Try again
+                </button>
+                <button
+                  type="button"
+                  onClick={clearImage}
+                  class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+                >
+                  Choose another image
+                </button>
+              </div>
+            </section>
+          )}
+
+          {image && image.status === 'done' && image.result && image.resultUrl && (
+            <section class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-900">
+              <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <h2 class="truncate text-sm font-semibold">{image.file.name}</h2>
+                  <p class="text-xs text-slate-500 dark:text-slate-400">
+                    {image.result.width} × {image.result.height} px · processed locally
+                  </p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <a
+                    href={image.resultUrl}
+                    download={outputName(image.file.name, 'png')}
+                    class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                  >
+                    Download PNG
+                  </a>
+                  <button
+                    type="button"
+                    onClick={clearImage}
+                    class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+                  >
+                    New image
+                  </button>
+                </div>
+              </div>
+
+              <Preview
+                before={image.sourceUrl}
+                after={image.resultUrl}
+                width={image.result.width}
+                height={image.result.height}
+              />
+
+              {image.result.resized && (
+                <p class="mt-3 rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  This image was larger than {MAX_SIDE}px, so it was scaled down before processing
+                  to keep memory use in check.
+                </p>
+              )}
+            </section>
+          )}
+
           {import.meta.env.DEV && <DevModelTest />}
         </div>
       </main>
